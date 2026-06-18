@@ -155,10 +155,12 @@ from .meta import MetaClient
 from .client import Client, ServerDisconnectedError
 from .motd import MOTD
 from .cap import Cap
+from . import coords
 from . import mercenary
 from . import options
 from . import rcd
 from . import sound
+from .coords import n2ss, n2gs, n2ts, gs2n, ts2n, s2g, cursor, intragalactic, d2a, s2d, n_o, o_d, n_d
 
 VERSION = "0.9"
 
@@ -221,77 +223,6 @@ r_us = Rect((50, 50), (1000, 1000))
 # types.
 #
 
-def n2ss(x, y):
-    """ netrek to subgalactic screen coordinate conversion
-    """
-    return (x / subgalactic_factor + r_sg.left,
-            y / subgalactic_factor + r_sg.top)
-
-def n2gs(x, y):
-    """ netrek to galactic screen coordinate conversion
-    """
-    return (x / galactic_factor + r_us.left,
-            y / galactic_factor + r_us.top)
-
-def n2ts(me, x, y):
-    """ netrek to tactical screen coordinate conversion
-    """
-    return ((x - me.x) // 20 + r_us.centerx,
-            (y - me.y) // 20 + r_us.centery)
-
-def gs2n(x, y):
-    """ galactic screen to netrek coordinate conversion
-    """
-    return ((x - r_us.left) * galactic_factor,
-            (y - r_us.top) * galactic_factor)
-
-def ts2n(me, x, y):
-    """ tactical screen to netrek coordinate conversion
-    """
-    return ((x - r_us.centerx) * 20 + me.x,
-            (y - r_us.centery) * 20 + me.y)
-
-def s2g(me, x, y):
-    if ph_flight == ph_galactic: # forward reference (ph_*)
-        return gs2n(x, y)
-    else:
-        return ts2n(me, x, y)
-
-def cursor(me):
-    """ return the netrek coordinates of the mouse cursor """
-    x, y = pygame.mouse.get_pos()
-    return s2g(me, x, y)
-
-def intragalactic(xy):
-    x, y = xy
-    return (0 < x < GWIDTH) and (0 < y < GWIDTH)
-
-def d2a(dir):
-    """ convert netrek direction (0-255) to angle in degrees (0-359)
-    """
-    return dir * 360 / 256
-
-def s2d(me, x, y):
-    """ screen coordinate to netrek direction (0-255) conversion """
-    if ph_flight == ph_galactic: # forward reference (ph_*)
-        (mx, my) = n2gs(me.x, me.y)
-    else:
-        (mx, my) = n2ts(me, me.x, me.y)
-    return int((math.atan2(x - mx, my - y) / math.pi * 128.0 + 0.5))
-
-def n_o(p1, p2):
-    """ netrek coordinates to offset """
-    (x1, y1) = p1; (x2, y2) = p2
-    return (abs(x1 - x2), abs(y1 - y2))
-
-def o_d(offset_x, offset_y):
-    """ offset to distance """
-    return int((offset_x ** 2 + offset_y ** 2) ** 0.5)
-
-def n_d(p1, p2):
-    """ netrek coordinates to distance """
-    (offset_x, offset_y) = n_o(p1, p2)
-    return o_d(offset_x, offset_y)
 
 
 class Local:
@@ -4852,6 +4783,7 @@ class PhaseFlightGalactic(PhaseFlight):
         global ph_flight
         if (event.key == K_RETURN or event.key == K_TAB) and self.modal_handler is None:
             ph_flight = ph_tactical
+            coords.is_galactic = False
             self.run = False
             ac_done('Using the Galactic Map')
         else:
@@ -4915,6 +4847,7 @@ class PhaseFlightTactical(PhaseFlight):
         global ph_flight
         if (event.key == K_RETURN or event.key == K_TAB) and self.modal_handler is None:
             ph_flight = ph_galactic
+            coords.is_galactic = True
             self.run = False
         else:
             return PhaseFlight.kb(self, event)
@@ -5503,6 +5436,11 @@ def pg_init():
     dia = 200  # size of subgalactic
     r_sg = Rect((r_us.left+gap, r_us.bottom-gap-dia), (dia, dia))
     subgalactic_factor = GWIDTH / dia
+
+    coords.r_us = r_us
+    coords.r_sg = r_sg
+    coords.galactic_factor = galactic_factor
+    coords.subgalactic_factor = subgalactic_factor
 
     # sprite groups,
     # prefix { t_ for tactical, g_ for galactic, b_ for both, }
