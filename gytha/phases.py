@@ -49,7 +49,8 @@ from . import coords
 from . import rcd
 from . import mercenary
 from .client import ServerDisconnectedError
-from .overlays import InfoSprite
+from .models import Tag
+from .overlays import InfoSprite, GalacticAlerts, TacticalAlerts, Borders, Halos, Subgalactic
 from .packets import (
     cp_bye, cp_quit, cp_login, cp_updates, cp_outfit, cp_direction,
     cp_phaser, cp_torp, cp_beam, cp_bomb, cp_cloak, cp_det_torps, cp_det_mytorp,
