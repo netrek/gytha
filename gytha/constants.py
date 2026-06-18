@@ -238,3 +238,7 @@ PTFREE = 0
 PTMOVE = 1
 PTEXPLODE = 2
 PTDET = 3
+
+FONT_SANS = 'DejaVuSans.ttf'
+FONT_SANS_MONO = 'DejaVuSansMono.ttf'
+FONT_SANS_CONDENSED = 'DejaVuSansCondensed.ttf'
