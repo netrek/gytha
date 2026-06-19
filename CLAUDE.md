@@ -10,7 +10,7 @@ that are not obvious from the code alone, mostly surfaced during debugging.
 | Item | Value |
 |---|---|
 | Entry point | `gytha.py` → `gytha.main()` |
-| Primary source | `gytha/__init__.py` (5 700 lines) |
+| Primary source | `gytha/__init__.py` (~550 lines) + modules below |
 | Runtime | Python ≥ 3.8, Pygame ≥ 2.6.1 |
 | Server port | 2592 TCP/UDP |
 | Metaserver port | 3521 UDP |
@@ -21,6 +21,61 @@ Run windowed against a local server:
 
 ```
 python3 gytha.py --server localhost --name guest --no-fullscreen
+```
+
+---
+
+## Module structure
+
+The original monolithic `gytha/__init__.py` (5 700 lines) has been split into
+focused modules. `__init__.py` now holds only startup/init functions and
+module-level wiring.
+
+| Module | Contents |
+|---|---|
+| `gytha/__init__.py` | `main()`, `pg_init()`, `nt_init()`, `mc_init()`, wiring |
+| `gytha/phases.py` | All `Phase` subclasses, `nt_play()`, `nt_play_a_slot()` |
+| `gytha/achievements.py` | `ac_load/save/done/deliver/progress`, guidance data |
+| `gytha/packets.py` | `CP_*` / `SP_*` packet classes, metaclass registries |
+| `gytha/overlays.py` | HUD sprite classes (alerts, borders, info, messages) |
+| `gytha/game_sprites.py` | In-game sprite classes (planets, ships, torps, plasma) |
+| `gytha/models.py` | Domain model classes (`Galaxy`, `Ship`, `Planet`, …) |
+| `gytha/coords.py` | Coordinate conversion functions |
+| `gytha/options.py` | `argparse` parser |
+| `gytha/constants.py` | Protocol constants, team/ship tables |
+| `gytha/util.py` | Shared utility functions |
+| `gytha/client.py` | `NetworkThread`, `Client` (TCP/UDP) |
+| `gytha/bouncer.py` | Animated bouncer widget |
+| `gytha/sprites.py` | Base sprite/widget classes |
+| `gytha/cache.py` | Image and font caches |
+
+### Module-level state injection pattern
+
+Each extracted module declares its shared state as `None` at module level.
+`__init__.py` injects the real objects after they are created:
+
+```python
+# in gytha/__init__.py — after galaxy = Galaxy()
+phases.galaxy = galaxy
+packets.galaxy = galaxy
+
+# in pg_init() — after sprite groups are created
+phases.screen = screen
+phases.b_info = b_info
+achievements.b_info = b_info
+
+# in _sync_me() — called by SP_YOU.handler() on every ship update
+phases.me = new_me
+achievements.me = new_me
+```
+
+Callables that phases.py needs from `__init__.py` (to avoid circular imports)
+are injected as references after their definitions:
+
+```python
+phases.pg_quit = pg_quit
+phases.nt_shutdown = nt_shutdown
+phases.ac_save = ac_save   # etc.
 ```
 
 ---
@@ -187,23 +242,22 @@ not call `pygame.display.flip()` or any other SDL2 display function.
 
 ## Global state
 
-`gytha/__init__.py` uses module-level globals accessed throughout the file. The
-most important ones:
+The most important shared names and where they live after extraction:
 
-| Name | Type | Purpose |
-|---|---|---|
-| `screen` | `pygame.Surface` | Main display surface |
-| `galaxy` | `Galaxy` | Container for all game objects |
-| `me` | `Ship` | Current player's ship (None before login) |
-| `nt` | `Client` | Netrek server connection |
-| `mc` | `MetaClient` | Metaserver connection |
-| `opt` | namespace | Parsed command-line options |
-| `r_main` | `Rect` | Full window rectangle |
-| `r_us` | `Rect` | Tactical / galactic play area |
-| `ph_flight` | `Phase` | Active flight phase |
-| `UE_TIMER` | `int` | Custom event type for phase timer |
-| `UE_BOUNCER` | `int` | Custom event type for bouncer timer |
-| `NETWORK_DATA_READY` | `int` | Custom event type for network wakeup |
+| Name | Type | Canonical home | Also injected into |
+|---|---|---|---|
+| `screen` | `pygame.Surface` | `__init__` (set by `pg_init`) | `phases`, `overlays` |
+| `galaxy` | `Galaxy` | `__init__` | `phases`, `packets`, `models`, `overlays` |
+| `me` | `Ship` | `__init__` | `phases`, `achievements`, `packets`, `models`, `game_sprites`, `overlays` |
+| `nt` | `Client` | `__init__` | `phases`, `packets`, `overlays` |
+| `mc` | `MetaClient` | `__init__` | `phases` |
+| `opt` | namespace | `__init__` | `phases`, `achievements`, `packets`, `models`, `game_sprites`, `overlays` |
+| `r_main` | `Rect` | `__init__` (set by `pg_init`) | `phases`, `overlays` |
+| `r_us` | `Rect` | `__init__` (set by `pg_init`) | `phases`, `coords`, `overlays` |
+| `ph_flight` | `Phase` | `phases` (internal) | — |
+| `UE_TIMER` | `int` | `__init__` | `phases`, `overlays` |
+| `UE_BOUNCER` | `int` | `__init__` | `overlays` |
+| `NETWORK_DATA_READY` | `int` | `__init__` | `phases` |
 
-Sprite groups (`t_planets`, `g_players`, `b_warning`, etc.) are also module-level
-and are populated by `pg_init()`.
+Sprite groups (`t_planets`, `g_players`, `b_warning`, etc.) are created in
+`pg_init()` and injected into `phases`, `game_sprites`, `models`, and `overlays`.
