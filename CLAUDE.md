@@ -14,7 +14,7 @@ that are not obvious from the code alone, mostly surfaced during debugging.
 | Runtime | Python ≥ 3.8, Pygame ≥ 2.6.1 |
 | Server port | 2592 TCP/UDP |
 | Metaserver port | 3521 UDP |
-| Test system A | Ubuntu 26.04, LXC container, X11 over SSH |
+| Test system A | Ubuntu 26.04, LXC container, X11 over SSH, 3840x2160 display |
 | Test system B | Ubuntu 24.04 bare metal, local Xorg |
 
 Run windowed against a local server:
@@ -124,6 +124,39 @@ pygame.event.wait()  ← blocks       select([tcp, udp], [], [], 0.5)
 display_sink_event()
 redraw + pygame.display.flip()
 ```
+
+### Display size and scaling
+
+The tactical and galactic views are 1000 pixels square (`r_us`), centred in the
+display surface (`r_main`).  On a display at least 2000 pixels in both
+dimensions, `pg_set_mode_scaled()` opens the surface with `pygame.SCALED`, and SDL
+magnifies it by a whole number factor N = min(w, h) // 1000, nearest-neighbour:
+
+| Mode | Logical surface | Shown as (3840x2160 display) |
+|---|---|---|
+| Fullscreen | display size // N, e.g. 1920x1080 | 3840x2160, layout as on a 1080p display |
+| `--no-fullscreen` | 1000x1000 | 2000x2000 window; SDL picks N from the usable desktop area |
+| `--width`/`--height` | as given | not scaled |
+
+Displays under 2000 pixels (1080p, 1440p) take the unscaled path as before.
+
+**Rule:** `screen`, `r_main`, `event.pos` and `pygame.mouse.get_pos()` are all in
+logical pixels; SDL converts the pointer.  Never use
+`pygame.display.get_window_size()` or `pygame.display.Info()` for layout or hit
+testing.  Screenshots (`snap()`) save the logical surface.
+
+Fullscreen scaling relies on the window manager honouring
+`_NET_WM_STATE_FULLSCREEN`.  Under twm or no window manager (as in Xvfb) the
+window stays at the logical size, unmagnified.
+
+Over X11 via SSH (test system A, 3840x2160) each `display.update(rects)` costs as
+much as a full `flip()`, scaled or not, about 140 MB/s of window pixels: 30 ms
+for a 1000x1000 window, 114 ms for 2000x2000, 230 ms for 3840x2160.  Scaling to
+the same window size costs no more than not scaling.
+
+Headless testing: `xvfb-run -s "-screen 0 3840x2160x24"` with `twm -f` a config
+containing `RandomPlacement`.  Without it twm waits for a click to place each
+window while holding a server grab, and `xwd` and `xdotool` hang.
 
 ---
 

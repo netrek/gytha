@@ -50,10 +50,10 @@ parser.add_argument("--splash-time",
                     help="viewing delay for splash screen in milliseconds")
 parser.add_argument("--width",
                     type=int, dest="manual_width",
-                    help="force specific resolution for testing")
+                    help="force specific resolution for testing, without scaling")
 parser.add_argument("--height",
                     type=int, dest="manual_height",
-                    help="force specific resolution for testing")
+                    help="force specific resolution for testing, without scaling")
 parser.add_argument("--no-backgrounds",
                     action="store_true", dest="no_backgrounds", default=False,
                     help="turn off the background images")

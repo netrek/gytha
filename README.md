@@ -40,7 +40,8 @@ coordinated attacks.
 - Structured distress / RCD (Receiver Configurable Distress) team-chat parsing
 - Achievement system persisted to `~/.gytha.achievements`
 - Mercenary auto-team-selection mode
-- Fullscreen and windowed modes; Scale2x for high-DPI displays
+- Fullscreen and windowed modes; magnified by a whole number on large displays
+  (twice on 4K)
 - OGG sound effects (kills, death, phaser, shields, gains)
 - Screenshots via the Print Screen key
 
@@ -194,6 +195,16 @@ python3 gytha.py --name MyName --team fed
 The splash screen appears briefly, then the server-list screen loads with live
 data from the metaserver.  Click a server to connect.
 
+### Large displays
+
+The tactical and galactic views are 1000 pixels square.  On a display at least
+2000 pixels in both directions, such as 4K, the game is magnified by a whole
+number so that it fills the display: twice on 4K, where full screen is laid out
+as on a 1920x1080 display, and a window is 2000x2000.  Text and ships are
+magnified, not redrawn larger.  The pointer moves in display pixels, so at twice
+the size it needs twice the movement for the same tactical distance.  `--width`
+and `--height` turn scaling off.
+
 ---
 
 ## Controls
@@ -260,7 +271,7 @@ data from the metaserver.  Click a server to connect.
     --metaserver-refresh-interval N
                           Seconds between metaserver polls (default 30)
     --splash-time MS      Splash screen duration in milliseconds (default 1000)
-    --width W / --height H  Force a specific window resolution
+    --width W / --height H  Force a specific window resolution, without scaling
     --no-backgrounds      Disable background images
     --halos               Show experimental target-distance halos
     --debug               Overlay FPS, UPS, and network statistics

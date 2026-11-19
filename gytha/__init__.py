@@ -314,6 +314,34 @@ models.ac_done = ac_done
 overlays.ac_done = ac_done
 
 
+def pg_set_mode_scaled(videoinfo):
+    """ on a display with room for the 1000 pixel square game at least
+    twice over, open a display surface that SDL magnifies by a whole
+    number factor, so the game fills the display as it would on a
+    smaller one.  Returns None when the display is too small or scaling
+    is not available. """
+    factor = min(videoinfo.current_w, videoinfo.current_h) // 1000
+    if factor < 2:
+        return None
+    try:
+        if opt.fullscreen:
+            # the logical size is the display divided by the factor,
+            # so the layout is as for a display of that size, with
+            # nothing lost to borders
+            size = (videoinfo.current_w // factor,
+                    videoinfo.current_h // factor)
+            screen = pygame.display.set_mode(size, SCALED | FULLSCREEN)
+        else:
+            # SDL chooses the largest factor that fits the usable
+            # area of the desktop, after panels and docks
+            size = (1000, 1000)
+            screen = pygame.display.set_mode(size, SCALED)
+    except pygame.error as e:
+        print("could not scale the display,", e)
+        return None
+    print("scaling the display")
+    return screen
+
 def pg_init():
     """ pygame initialisation """
     global t_planets, t_players, t_torps, t_plasma, g_planets, g_players, g_locator, b_warning_sprite, b_warning, b_reports, b_message, b_info, background, galactic_factor, subgalactic_factor, r_main, r_us, r_sg
@@ -348,6 +376,9 @@ def pg_init():
         else:
             screen = pygame.display.set_mode((manual_width, manual_height))
         undersize = False
+
+    if not screen:
+        screen = pg_set_mode_scaled(videoinfo)
 
     if not screen and undersize:
         print("trying best resolution for game")
@@ -386,6 +417,9 @@ def pg_init():
     height = surface.get_height()
     size = width, height
     print("have a surface size %d x %d pixels" % (width, height))
+    if (width, height) != pygame.display.get_window_size():
+        print("shown in a window size %d x %d pixels" %
+              pygame.display.get_window_size())
     r_main = Rect((0, 0), (width, height))
     r_us = r_main
     if width > 1000 and height > 1000:
